@@ -16,6 +16,7 @@ jobs:
     env:
       SDK_NAME: openwrt-sdk-24.10.5-mediatek-filogic_gcc-13.3.0_musl.Linux-x86_64
       SDK_SHA256: 0fa98c542ee07f1423ebcdce19aed464bc7f8008ef2cbe83cb723ec694ed8c56
+      GO_FEED_COMMIT: dbaeeb38d3df5f7b8c78ff23e558d2eab5b0a895
     steps:
       - uses: actions/checkout@v4
         with:
@@ -46,6 +47,20 @@ jobs:
           echo 'src-git passwall_packages https://github.com/Openwrt-Passwall/openwrt-passwall-packages.git;main' >> feeds.conf
           cat feeds.conf.default >> feeds.conf
           ./scripts/feeds update -a 2>&1 | tee "$RUNNER_TEMP/output/feeds-update.log"
+
+          # geoview requires Go >= 1.25; the SDK feed supplies Go 1.23.12.
+          # Backport only the Go build infrastructure from a fixed commit.
+          GO_FEED_DIR="$RUNNER_TEMP/go-feed"
+          git init "$GO_FEED_DIR"
+          git -C "$GO_FEED_DIR" remote add origin https://github.com/openwrt/packages.git
+          git -C "$GO_FEED_DIR" sparse-checkout init --cone
+          git -C "$GO_FEED_DIR" sparse-checkout set lang/golang
+          git -C "$GO_FEED_DIR" fetch --depth 1 --filter=blob:none origin "$GO_FEED_COMMIT"
+          git -C "$GO_FEED_DIR" checkout --detach FETCH_HEAD
+          test -f "$GO_FEED_DIR/lang/golang/golang/Makefile"
+          rm -rf feeds/packages/lang/golang
+          cp -a "$GO_FEED_DIR/lang/golang" feeds/packages/lang/golang
+          ./scripts/feeds update -i packages
           ./scripts/feeds install -a 2>&1 | tee "$RUNNER_TEMP/output/feeds-install.log"
           test -f feeds/passwall2/luci-app-passwall2/Makefile
           # Distinguish this build from the original package and earlier runs.
@@ -55,6 +70,7 @@ jobs:
             echo "Source commit: $GITHUB_SHA"
             echo "SDK: $SDK_NAME"
             echo "SDK SHA256: $SDK_SHA256"
+            echo "Go feed override (1.25.6): $GO_FEED_COMMIT"
             for feed in feeds/*; do
               if [ -d "$feed/.git" ]; then
                 printf '%s: ' "$feed"
