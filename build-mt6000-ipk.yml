@@ -1,0 +1,112 @@
+name: Build MT6000 IPK (24.10.5)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
+    env:
+      SDK_NAME: openwrt-sdk-24.10.5-mediatek-filogic_gcc-13.3.0_musl.Linux-x86_64
+      SDK_SHA256: 0fa98c542ee07f1423ebcdce19aed464bc7f8008ef2cbe83cb723ec694ed8c56
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential clang flex bison gawk gettext \
+            git libncurses-dev libssl-dev python3 python3-setuptools \
+            rsync unzip zlib1g-dev file wget curl zstd swig libpython3-dev
+
+      - name: Download verified SDK
+        run: |
+          cd "$RUNNER_TEMP"
+          curl --fail --location --retry 3 -o "$SDK_NAME.tar.zst" \
+            "https://downloads.openwrt.org/releases/24.10.5/targets/mediatek/filogic/$SDK_NAME.tar.zst"
+          echo "$SDK_SHA256  $SDK_NAME.tar.zst" | sha256sum -c -
+          mkdir sdk
+          tar --zstd -xf "$SDK_NAME.tar.zst" -C sdk --strip-components=1
+          mkdir -p "$RUNNER_TEMP/output"
+
+      - name: Prepare feeds and local sources
+        run: |
+          cd "$RUNNER_TEMP/sdk"
+          # Use exactly the checked-out commit, including custom Lua files.
+          printf 'src-link passwall2 %s\n' "$GITHUB_WORKSPACE" > feeds.conf
+          echo 'src-git passwall_packages https://github.com/Openwrt-Passwall/openwrt-passwall-packages.git;main' >> feeds.conf
+          cat feeds.conf.default >> feeds.conf
+          ./scripts/feeds update -a 2>&1 | tee "$RUNNER_TEMP/output/feeds-update.log"
+          ./scripts/feeds install -a 2>&1 | tee "$RUNNER_TEMP/output/feeds-install.log"
+          test -f feeds/passwall2/luci-app-passwall2/Makefile
+          # Distinguish this build from the original package and earlier runs.
+          sed -i -E "s/^(PKG_RELEASE:=.*)/\1.custom${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}/" \
+            feeds/passwall2/luci-app-passwall2/Makefile
+          {
+            echo "Source commit: $GITHUB_SHA"
+            echo "SDK: $SDK_NAME"
+            echo "SDK SHA256: $SDK_SHA256"
+            for feed in feeds/*; do
+              if [ -d "$feed/.git" ]; then
+                printf '%s: ' "$feed"
+                git -C "$feed" rev-parse HEAD
+              fi
+            done
+          } > "$RUNNER_TEMP/output/build-info.txt"
+
+      - name: Configure package
+        run: |
+          cd "$RUNNER_TEMP/sdk"
+          cat > .config <<'EOF'
+          CONFIG_ALL=n
+          CONFIG_ALL_NONSHARED=n
+          CONFIG_ALL_KMODS=n
+          CONFIG_AUTOREMOVE=n
+          CONFIG_SIGNED_PACKAGES=n
+          CONFIG_PACKAGE_luci-app-passwall2=m
+          CONFIG_LUCI_LANG_ru=y
+          EOF
+          make defconfig 2>&1 | tee "$RUNNER_TEMP/output/configure.log"
+          grep -q '^CONFIG_PACKAGE_luci-app-passwall2=m$' .config
+          cp .config "$RUNNER_TEMP/output/build.config"
+
+      - name: Build Passwall2 package
+        run: |
+          cd "$RUNNER_TEMP/sdk"
+          make package/luci-app-passwall2/compile -j2 V=s \
+            2>&1 | tee "$RUNNER_TEMP/output/build.log"
+
+      - name: Collect IPK files
+        run: |
+          cd "$RUNNER_TEMP/sdk"
+          mkdir -p "$RUNNER_TEMP/ipk"
+          find bin/packages -type f \( -name 'luci-app-passwall2_*.ipk' \
+            -o -name 'luci-i18n-passwall2-ru_*.ipk' \) \
+            -exec cp '{}' "$RUNNER_TEMP/ipk/" \;
+          compgen -G "$RUNNER_TEMP/ipk/luci-app-passwall2_*.ipk" > /dev/null
+
+      - name: Upload installable packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: passwall2-mt6000-24.10.5-${{ github.run_number }}
+          path: ${{ runner.temp }}/ipk/*.ipk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload build diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-diagnostics-${{ github.run_number }}
+          path: ${{ runner.temp }}/output/
+          if-no-files-found: ignore
+          retention-days: 14

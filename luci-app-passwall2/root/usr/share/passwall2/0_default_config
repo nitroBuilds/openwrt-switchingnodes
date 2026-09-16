@@ -1,6 +1,7 @@
 
 config global
 	option enabled '0'
+	option vless_failover '0'
 	option node_socks_port '1070'
 	option localhost_proxy '1'
 	option client_proxy '1'
@@ -225,4 +226,3 @@ config shunt_rules 'Russia'
 	option ip_list 'geoip:ru
 #rule-set:remote:https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/refs/heads/release/sing-box/rule-set-geoip/geoip-ru.srs'
 	option group 'RU'
-

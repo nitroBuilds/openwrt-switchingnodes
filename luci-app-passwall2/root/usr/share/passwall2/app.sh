@@ -934,6 +934,9 @@ start() {
 		}
 	fi
 	run_process_queue
+	if [ "$ENABLED_DEFAULT_ACL" = "1" ] && [ "$(config_n_get @global[0] vless_failover 0)" = "1" ]; then
+		/bin/sh "$APP_PATH/vless_failover.sh" >/dev/null 2>&1 &
+	fi
 	start_crontab
 	log_i18n 0 "Running complete!"
 	echolog "\n"

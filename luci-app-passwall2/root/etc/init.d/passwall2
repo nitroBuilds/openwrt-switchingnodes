@@ -3,6 +3,9 @@
 START=99
 STOP=15
 
+EXTRA_COMMANDS="vless_failover"
+EXTRA_HELP="\tvless_failover Switch to a VLESS node from the next subscription"
+
 . $IPKG_INSTROOT/usr/share/passwall2/utils.sh
 APP_FILE=${APP_PATH}/app.sh
 LOCK_FILE_DIR=/var/lock
@@ -75,6 +78,25 @@ restart() {
 	rm -f "$rule_lock" "$sub_lock"
 	$APP_FILE stop
 	$APP_FILE start $1
+	unset_lock
+}
+
+vless_failover() {
+	set_lock || return 1
+	if [ -f "${LOCK_PATH}/${CONFIG}_subscribe.lock" ] || [ -f "${LOCK_PATH}/${CONFIG}_rule_update.lock" ]; then
+		unset_lock
+		return 1
+	fi
+	local next_node
+	next_node=$(lua "${APP_PATH}/vless_failover.lua" switch "$1")
+	if [ $? != 0 ] || [ -z "$next_node" ]; then
+		log 0 "VLESS failover: no eligible node in another subscription, or configuration changed."
+		unset_lock
+		return 1
+	fi
+	log 0 "VLESS failover: switching from $1 to ${next_node}."
+	$APP_FILE stop
+	$APP_FILE start
 	unset_lock
 }
 
