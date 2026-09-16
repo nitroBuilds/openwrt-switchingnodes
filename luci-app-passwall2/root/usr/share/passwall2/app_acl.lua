@@ -73,6 +73,14 @@ function init_acl()
 				a.remarks = o.remarks
 				a.interface = o.interface
 				a.sources = o.sources
+				-- Older configurations store sources as a whitespace-separated option.
+				if type(a.sources) == "string" then
+					local sources = {}
+					for source in a.sources:gmatch("%S+") do
+						sources[#sources + 1] = source
+					end
+					a.sources = sources
+				end
 				a.tcp_no_redir_ports = o.tcp_no_redir_ports
 				a.udp_no_redir_ports = o.udp_no_redir_ports
 				a.tcp_redir_ports = o.tcp_redir_ports
