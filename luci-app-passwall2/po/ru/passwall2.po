@@ -2438,3 +2438,30 @@ msgstr "Задает список поддерживаемых наборов ш
 
 msgid "This username already exists."
 msgstr "Это имя пользователя уже существует."
+
+msgid "Automatic VLESS node selection"
+msgstr "Автоматический выбор VLESS-ноды"
+
+msgid "Check the global VLESS node using an HTTP GET through its proxy. On repeated failures, switch to a VLESS node from the next subscription and restart PassWall2. Requires at least two subscriptions with different names. Does not apply to shunt nodes."
+msgstr "Проверять основную VLESS-ноду HTTP-запросом через её прокси. При достижении порога ошибок выбирать VLESS-ноду следующей подписки и перезапускать PassWall2. Нужны минимум две подписки с разными названиями. Не применяется к нодам разделения трафика."
+
+msgid "HTTP body check URL"
+msgstr "URL для проверки тела HTTP-ответа"
+
+msgid "Use an HTTP or HTTPS URL returning a nonempty body and a 2xx status. A 204 response is not sufficient."
+msgstr "Укажите HTTP- или HTTPS-адрес, возвращающий непустое тело и статус 2xx. Пустой ответ 204 не считается успешной проверкой."
+
+msgid "Enter an HTTP or HTTPS URL."
+msgstr "Укажите HTTP- или HTTPS-адрес."
+
+msgid "Failover check interval"
+msgstr "Интервал проверки доступности"
+
+msgid "Seconds between checks, including after a node switch."
+msgstr "Пауза между проверками в секундах, в том числе после переключения ноды."
+
+msgid "HTTP body check timeout"
+msgstr "Таймаут получения тела HTTP-ответа"
+
+msgid "Consecutive failures before switching"
+msgstr "Количество ошибок подряд до переключения"

@@ -85,6 +85,40 @@ o.template = m:template_path("/cbi/nodes_listvalue")
 o:value("", translate("Close"))
 o.group = {""}
 
+o = s:taboption("Main", Flag, "vless_failover", translate("Automatic VLESS node selection"))
+o.default = "0"
+o.rmempty = false
+o.description = translate("Check the global VLESS node using an HTTP GET through its proxy. On repeated failures, switch to a VLESS node from the next subscription and restart PassWall2. Requires at least two subscriptions with different names. Does not apply to shunt nodes.")
+
+o = s:taboption("Main", Value, "vless_failover_url", translate("HTTP body check URL"))
+o:depends("vless_failover", "1")
+o.default = "https://www.youtube.com/"
+o.rmempty = false
+o.description = translate("Use an HTTP or HTTPS URL returning a nonempty body and a 2xx status. A 204 response is not sufficient.")
+o.validate = function(self, value)
+	if value and not value:find("%s") and value:match("^https?://[^/]+") then return value end
+	return nil, translate("Enter an HTTP or HTTPS URL.")
+end
+
+o = s:taboption("Main", Value, "vless_failover_interval", translate("Failover check interval"))
+o:depends("vless_failover", "1")
+o.default = "300"
+o.datatype = "range(5,3600)"
+o.rmempty = false
+o.description = translate("Seconds between checks, including after a node switch.")
+
+o = s:taboption("Main", Value, "vless_failover_timeout", translate("HTTP body check timeout"))
+o:depends("vless_failover", "1")
+o.default = "10"
+o.datatype = "range(1,120)"
+o.rmempty = false
+
+o = s:taboption("Main", Value, "vless_failover_failures", translate("Consecutive failures before switching"))
+o:depends("vless_failover", "1")
+o.default = "1"
+o.datatype = "range(1,20)"
+o.rmempty = false
+
 o = s:taboption("Main", HideValue, "_node")
 o:depends({ node = "",  ['!reverse'] = true })
 
