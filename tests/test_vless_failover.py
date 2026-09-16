@@ -108,6 +108,8 @@ vless_failover a1
         if interpreter:
             subprocess.run([interpreter, 'tests/test_vless_failover.lua'], cwd=ROOT,
                            check=True)
+            subprocess.run([interpreter, 'tests/test_app_acl.lua'], cwd=ROOT,
+                           check=True)
         else:
             try:
                 from lupa.lua51 import LuaRuntime
@@ -118,6 +120,7 @@ vless_failover a1
             try:
                 os.chdir(ROOT)
                 runtime.execute((ROOT / 'tests/test_vless_failover.lua').read_text())
+                runtime.execute((ROOT / 'tests/test_app_acl.lua').read_text())
                 for relative in ['luci-app-passwall2/luasrc/model/cbi/passwall2/client/global.lua']:
                     runtime.execute('assert(loadfile(...))', str(ROOT / relative))
             finally:
